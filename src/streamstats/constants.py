@@ -1,0 +1,11 @@
+"""Константы пакета streamstats."""
+
+LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+ERROR_LEVELS = ("ERROR", "CRITICAL")
+FORMAT_CSV = "csv"
+FORMAT_JSONL = "jsonl"
+SUPPORTED_FORMATS = (FORMAT_CSV, FORMAT_JSONL)
+TOP_ERROR_SOURCE_LIMIT = 5
+EXIT_CODE_ERROR = 2
+LOGGER_NAME = "streamstats"
+DEFAULT_LOG_NAME = "streamstats.log"
