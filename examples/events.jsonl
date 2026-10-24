@@ -1,0 +1,5 @@
+{"timestamp":"2026-10-07T12:00:00+03:00","level":"INFO","source":"загрузчик","message":"Начало чтения"}
+{"timestamp":"2026-10-07T09:30:00+00:00","level":"ERROR","source":"api","message":"Сбой запроса"}
+{"timestamp":"2026-10-07T09:45:00+00:00","level":"CRITICAL","source":"api","message":"Сервис недоступен"}
+{"timestamp":"2026-10-07T10:00:00+00:00","level":"DEBUG","source":"worker","message":"Пауза"}
+{"timestamp":"2026-10-07T11:00:00+00:00","level":"WARNING","source":"worker","message":"Мало места"}
