@@ -1,5 +1,6 @@
 """Тесты проверки событий и накопления статистики."""
 
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,7 @@ from streamstats.errors import (
     StreamStatsError,
     UnsupportedFormatError,
 )
+from streamstats.filters import filter_events
 from streamstats.models import Event
 
 
@@ -255,3 +257,46 @@ def test_examples_csv_has_expected_totals() -> None:
     assert stats.error_by_source["api"] == 2
     assert stats.first_text == "2026-10-07T12:00:00+03:00"
     assert stats.last_text == "2026-10-07T11:00:00+00:00"
+
+
+def test_level_filter_does_not_pull_events_ahead() -> None:
+    """Фильтр забирает следующее событие только когда его просят."""
+    pulled = {"count": 0}
+    events = [
+        make_event("2026-10-07T10:00:00+00:00", "INFO", "a"),
+        make_event("2026-10-07T11:00:00+00:00", "ERROR", "b"),
+        make_event("2026-10-07T12:00:00+00:00", "ERROR", "c"),
+    ]
+
+    def source() -> Iterator[Event]:
+        """Считает, сколько событий уже отдали наружу."""
+        for event in events:
+            pulled["count"] += 1
+            yield event
+
+    found = next(filter_events(source(), level="ERROR"))
+    assert found.source == "b"
+    assert pulled["count"] == 2
+
+
+def test_time_filter_bounds_are_inclusive(tmp_path: Path) -> None:
+    """--since и --until оставляют события на самих границах."""
+    path = tmp_path / "span.csv"
+    path.write_text(
+        "timestamp,level,source,message\n"
+        "2026-10-07T10:00:00+00:00,INFO,api,early\n"
+        "2026-10-07T11:00:00+00:00,ERROR,api,edge\n"
+        "2026-10-07T12:00:00+00:00,INFO,api,late\n",
+        encoding="utf-8",
+    )
+    since = parse_timestamp("2026-10-07T11:00:00+00:00")
+    until = parse_timestamp("2026-10-07T11:00:00+00:00")
+    stats = collect_stats(
+        [path],
+        "csv",
+        skip_invalid=False,
+        since=since,
+        until=until,
+    )
+    assert stats.total_events == 1
+    assert stats.by_level["ERROR"] == 1

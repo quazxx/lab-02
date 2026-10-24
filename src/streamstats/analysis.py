@@ -22,6 +22,7 @@ from streamstats.errors import (
     StreamStatsError,
     UnsupportedFormatError,
 )
+from streamstats.filters import filter_events
 from streamstats.models import Event
 from streamstats.parsers import iter_csv_records, iter_jsonl_lines, parse_jsonl_line
 
@@ -193,6 +194,10 @@ def collect_stats(
     paths: list[Path],
     file_format: str,
     skip_invalid: bool,
+    level: str | None = None,
+    source: str | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
 ) -> Stats:
     """Читает файлы по очереди и копит одну общую статистику."""
     ensure_format(file_format)
@@ -204,7 +209,14 @@ def collect_stats(
         logger.info(f"Начало чтения файла {path}")
         try:
             events = _events_from_file(path, file_format, stats, skip_invalid)
-            for event in events:
+            filtered = filter_events(
+                events,
+                level=level,
+                source=source,
+                since=since,
+                until=until,
+            )
+            for event in filtered:
                 stats.add(event)
         except OSError as error:
             raise StreamStatsError(
