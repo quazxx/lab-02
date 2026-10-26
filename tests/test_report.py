@@ -1,10 +1,11 @@
-"""Тесты JSON-отчёта."""
+"""Тесты JSON- и CSV-отчётов."""
 
+import csv
 import json
 from pathlib import Path
 
 from streamstats.analysis import collect_stats
-from streamstats.report import build_report, write_json_report
+from streamstats.report import build_report, write_csv_report, write_json_report
 
 SAMPLE = (
     "timestamp,level,source,message\n"
@@ -35,3 +36,27 @@ def test_same_input_gives_byte_identical_json(tmp_path: Path) -> None:
     assert payload["top_error_sources"] == [{"source": "api", "count": 1}]
     assert payload["first_timestamp"] == "2026-10-07T12:00:00+03:00"
     assert payload["skipped_invalid"] == 0
+
+
+def test_csv_report_uses_the_same_totals(tmp_path: Path) -> None:
+    """CSV-отчёт строится из того же ReportData, что и JSON."""
+    source = tmp_path / "events.csv"
+    source.write_text(SAMPLE, encoding="utf-8")
+    data = build_report(collect_stats([source], "csv", skip_invalid=False))
+    json_path = tmp_path / "report.json"
+    csv_path = tmp_path / "report.csv"
+    write_json_report(data, json_path)
+    write_csv_report(data, csv_path)
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    with csv_path.open(encoding="utf-8", newline="") as file:
+        rows = list(csv.DictReader(file))
+    total_rows = [row for row in rows if row["section"] == "total_events"]
+    assert len(total_rows) == 1
+    assert int(total_rows[0]["value"]) == payload["total_events"]
+    error_rows = [
+        row for row in rows if row["section"] == "level" and row["key"] == "ERROR"
+    ]
+    assert int(error_rows[0]["value"]) == payload["by_level"]["ERROR"]
+    top_rows = [row for row in rows if row["section"] == "top_error_source"]
+    assert top_rows[0]["key"] == "api"
+    assert int(top_rows[0]["value"]) == 1

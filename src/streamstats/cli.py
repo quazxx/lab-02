@@ -14,7 +14,7 @@ from streamstats.constants import (
 )
 from streamstats.errors import CliConfigError, InvalidTimestampError, StreamStatsError
 from streamstats.logging_setup import setup_logging
-from streamstats.report import build_report, write_json_report
+from streamstats.report import build_report, write_csv_report, write_json_report
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -79,6 +79,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--until",
         help="Оставить события не позже этого времени ISO 8601",
     )
+    analyze.add_argument(
+        "--csv-output",
+        type=Path,
+        help="CSV-отчёт",
+    )
     return parser
 
 
@@ -118,7 +123,10 @@ def execute(args: argparse.Namespace) -> None:
         output = Path(args.output)
         write_json_report(report, output)
         logger.info(f"Отчёт записан: {output}")
-        print(f"Отчёт записан: {output}")
+        if args.csv_output is not None:
+            csv_output = Path(args.csv_output)
+            write_csv_report(report, csv_output)
+            logger.info(f"CSV-отчёт записан: {csv_output}")
     except StreamStatsError as error:
         get_logger().error(error)
         print(str(error), file=sys.stderr)

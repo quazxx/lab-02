@@ -1,6 +1,8 @@
 """Сборка отчёта из уже посчитанных итогов."""
 
+import csv
 import json
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -65,5 +67,35 @@ def write_json_report(data: ReportData, path: Path) -> None:
     text = json.dumps(_json_payload(data), ensure_ascii=False, indent=2)
     try:
         path.write_text(text + "\n", encoding="utf-8")
+    except OSError as error:
+        raise StreamStatsError(f"не удалось записать отчёт {path}: {error}") from error
+
+
+def iter_report_rows(data: ReportData) -> Iterator[list[str]]:
+    """Превращает уже собранный отчёт в строки: раздел, ключ, значение."""
+    payload = _json_payload(data)
+    for key, value in payload.items():
+        if isinstance(value, dict):
+            section = key.removeprefix("by_")
+            for inner_key, inner_value in value.items():
+                yield [section, str(inner_key), str(inner_value)]
+        elif isinstance(value, list):
+            section = key.removesuffix("s")
+            for number, item in enumerate(value, start=1):
+                if isinstance(item, dict):
+                    yield [section, str(item["source"]), str(item["count"])]
+                else:
+                    yield [section, str(number), str(item)]
+        else:
+            yield [key, "", "" if value is None else str(value)]
+
+
+def write_csv_report(data: ReportData, path: Path) -> None:
+    """Записывает ReportData в CSV."""
+    try:
+        with path.open("w", encoding="utf-8", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(["section", "key", "value"])
+            writer.writerows(iter_report_rows(data))
     except OSError as error:
         raise StreamStatsError(f"не удалось записать отчёт {path}: {error}") from error
